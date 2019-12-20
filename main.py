@@ -27,6 +27,11 @@ import csv
 H=.00969 #um
 RHO= 8000#kg/m3
 sampleName= "BMG test sample 1"
+#normally every .1 seconds takes data
+normalMult=300 #multiply by sampling rate to get reduced rate (ex. 300*.1s=30s acquisition rate)
+threshTemp= 150 #in C
+
+
 ##########################
 ##########################
 
@@ -100,13 +105,16 @@ def plot(newData):
 class timerPP(Thread):
     def __init__(self,plotCount,event,period):
         Thread.__init__(self)
+        #flag to keep track of increased data aqcuisition
+        self.isSlow=True
         self.stopped = event
-        self.period=period
+        self.period=period*normalMult
         self.waitTime=0
         self.newData=False
         self.data=[]
         #plot new data every plotCount data acquisitions
-        self.plotCount=plotCount
+        self.fastPlotCount=plotCount
+        self.plotCount=1
         self.count=0
         #flag for header line
         self.isHeader=False
@@ -167,7 +175,13 @@ class timerPP(Thread):
                 #time to plot data, set plot Data flag
                 self.newData = True
                 self.count=0
+            #check if temp is above thresh temp
+            if (self.isSlow and temp>=threshTemp):
+                self.isSlow=False
+                self.plotCount=self.fastPlotCount
+                self.period=self.period/normalMult
             self.waitTime=self.period-(time.time()-startTime)
+
             if self.waitTime<0:
                 self.waitTime=0
 
